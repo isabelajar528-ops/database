@@ -94,6 +94,7 @@ log.info("server", "Loading modules");
 
 log.debug("server", "Importing express");
 const express = require("express");
+const path = require("path");
 const expressStaticGzip = require("express-static-gzip");
 log.debug("server", "Importing redbean-node");
 const { R } = require("redbean-node");
@@ -354,6 +355,15 @@ let needSetup = false;
     // With Basic Auth using the first user's username/password
     app.get("/metrics", apiAuth, prometheusAPIMetrics());
 
+    app.use((request, response, next) => {
+        if (request.path === "/" || request.path === "/index.html" || request.path === "/dashboard") {
+            response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+            response.setHeader("Pragma", "no-cache");
+            response.setHeader("Expires", "0");
+        }
+        next();
+    });
+
     app.use(
         "/",
         expressStaticGzip("dist", {
@@ -363,6 +373,122 @@ let needSetup = false;
 
     // ./data/upload
     app.use("/upload", express.static(Database.uploadDir));
+    app.get("/noc", (_req, response) => {
+        response.setHeader("Cache-Control", "no-store");
+        response.sendFile(path.join(__dirname, "../public/noc.html"));
+    });
+
+    const nocApiAuth = async (request, response, next) => {
+        response.setHeader("Cache-Control", "no-store");
+        const authorization = request.get("authorization") || "";
+        const match = authorization.match(/^Bearer\s+(.+)$/i);
+        if (!match) {
+            response.status(401).json({ error: "Autentikasi diperlukan." });
+            return;
+        }
+
+        try {
+            const decoded = jwt.verify(match[1], server.jwtSecret);
+            const username = typeof decoded?.username === "string" ? decoded.username : "";
+            const user = username
+                ? await R.findOne("user", " username = ? AND active = 1 ", [username])
+                : null;
+            if (!user || decoded.h !== shake256(user.password, SHAKE256_LENGTH)) {
+                response.status(401).json({ error: "Sesi autentikasi tidak valid." });
+                return;
+            }
+            request.nocUser = user;
+            next();
+        } catch (error) {
+            response.status(401).json({ error: "Sesi autentikasi tidak valid." });
+        }
+    };
+
+    app.get("/api/noc/monitors", nocApiAuth, async (_request, response) => {
+        try {
+            const monitors = await R.getAll(`
+                SELECT m.id, m.name, m.url, m.type, m.active,
+                       h.status, h.ping, h.msg
+                FROM monitor m
+                LEFT JOIN heartbeat h ON h.id = (
+                    SELECT latest.id
+                    FROM heartbeat latest
+                    WHERE latest.monitor_id = m.id
+                    ORDER BY latest.time DESC
+                    LIMIT 1
+                )
+                ORDER BY m.id
+            `);
+            response.json({
+                monitors: monitors.map(monitor => ({
+                    id: monitor.id,
+                    name: monitor.name,
+                    url: monitor.url || null,
+                    type: monitor.type,
+                    active: Boolean(monitor.active),
+                    status: monitor.status ?? 2,
+                    ping: monitor.ping ?? null,
+                    msg: monitor.msg || ""
+                })),
+                fetchedAt: new Date().toISOString(),
+                serverTime: Date.now(),
+                syncIntervalSeconds: 180
+            });
+        } catch (error) {
+            log.error("noc", error);
+            response.status(500).json({ error: "Gagal mengambil data monitor NOC." });
+        }
+    });
+    app.get("/api/noc/traffic/:monitorID", nocApiAuth, async (request, response) => {
+        const monitorID = Number(request.params.monitorID);
+        if (!Number.isInteger(monitorID) || monitorID < 1) {
+            response.status(400).json({ error: "ID monitor tidak valid." });
+            return;
+        }
+
+        try {
+            const range = String(request.query.range || "recent");
+            const rangeSecondsByName = {
+                "3h": 3 * 60 * 60,
+                "6h": 6 * 60 * 60,
+                "24h": 24 * 60 * 60,
+                "1w": 7 * 24 * 60 * 60,
+            };
+            if (range !== "recent" && !Object.prototype.hasOwnProperty.call(rangeSecondsByName, range)) {
+                response.status(400).json({ error: "Rentang trafik tidak valid." });
+                return;
+            }
+            const rangeSeconds = rangeSecondsByName[range];
+            const parameters = [monitorID];
+            let rangeClause = "";
+            if (rangeSeconds) {
+                rangeClause = " AND time >= datetime('now', ?)";
+                parameters.push(`-${rangeSeconds} seconds`);
+            }
+            const heartbeats = await R.getAll(
+                `SELECT time, status, ping
+                 FROM heartbeat
+                 WHERE monitor_id = ?${rangeClause}
+                 ORDER BY time DESC
+                 LIMIT 2000`,
+                parameters
+            );
+            response.json({
+                monitorID,
+                range,
+                points: heartbeats.reverse().map(heartbeat => ({
+                    time: heartbeat.time,
+                    status: heartbeat.status,
+                    ping: Number.isFinite(Number(heartbeat.ping)) && Number(heartbeat.ping) > 0
+                        ? Number(heartbeat.ping)
+                        : null
+                }))
+            });
+        } catch (error) {
+            log.error("noc", error);
+            response.status(500).json({ error: "Gagal mengambil data trafik monitor." });
+        }
+    });
 
     app.get("/.well-known/change-password", async (_, response) => {
         response.redirect("https://github.com/louislam/uptime-kuma/wiki/Reset-Password-via-CLI");
@@ -1767,6 +1893,13 @@ let needSetup = false;
     log.debug("server", "Init the server");
 
     server.httpServer.once("error", async (err) => {
+        if (err.code === "EADDRINUSE") {
+            log.warn("server", `Port ${port} sudah digunakan. Uptime Kuma sudah berjalan; terminal ini masuk mode standby.`);
+            await shutdownFunction();
+            log.info("server", "Layanan aktif pada instance Uptime Kuma yang sudah berjalan. Tekan Ctrl+C untuk menutup terminal standby.");
+            setInterval(() => {}, 2 ** 31 - 1);
+            return;
+        }
         log.error("server", "Cannot listen: " + err.message);
         await shutdownFunction();
         process.exit(1);

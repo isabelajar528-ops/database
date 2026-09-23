@@ -18,8 +18,8 @@
                 to="/dashboard"
                 class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none"
             >
-                <object class="bi me-2 ms-4" width="40" height="40" data="/icon.svg" />
-                <span class="fs-4 title">{{ $t("Uptime Kuma") }}</span>
+                <img class="kuma-brand-logo me-2 ms-4" width="40" height="40" src="/lemhannas-logo.jpeg" alt="Lemhannas RI" />
+                <span class="fs-4 title">NOC Lemhannas</span>
             </router-link>
 
             <a
@@ -33,6 +33,11 @@
             </a>
 
             <ul class="nav nav-pills">
+            <li v-if="$root.loggedIn" class="nav-item me-2">
+    <a href="/noc" class="nav-link">
+        <font-awesome-icon icon="chart-bar" /> NOC
+    </a>
+</li>
                 <li v-if="$root.loggedIn" class="nav-item me-2">
                     <router-link to="/manage-status-page" class="nav-link">
                         <font-awesome-icon icon="stream" />
@@ -120,8 +125,8 @@
         <!-- Mobile header -->
         <header v-else class="d-flex flex-wrap justify-content-center pt-2 pb-2 mb-3">
             <router-link to="/dashboard" class="d-flex align-items-center text-dark text-decoration-none">
-                <object class="bi" width="40" height="40" data="/icon.svg" />
-                <span class="fs-4 title ms-2">Uptime Kuma</span>
+                <img class="kuma-brand-logo" width="40" height="40" src="/lemhannas-logo.jpeg" alt="Lemhannas RI" />
+                <span class="fs-4 title ms-2">NOC Lemhannas</span>
             </router-link>
         </header>
 

@@ -18,6 +18,152 @@
         noto color emoji;
 }
 
+body {
+    border-top: 4px solid #3aa866;
+    background:
+        radial-gradient(circle at 10% 0%, rgba(92, 221, 139, 0.12), transparent 34rem),
+        #f4f7f5;
+    color: #354052;
+}
+
+#app > div:not(.dark) {
+    min-height: 100vh;
+    color: #354052;
+}
+
+#app > div:not(.dark) > header {
+    position: relative;
+    z-index: 1030;
+    margin: 18px 24px 28px;
+    padding: 14px 18px !important;
+    border: 1px solid #dfe8e1 !important;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 8px 24px rgba(43, 55, 76, 0.06);
+    backdrop-filter: blur(10px);
+}
+
+#app > div:not(.dark) > main .card,
+#app > div:not(.dark) > main .monitor-list {
+    border-color: #dfe8e1;
+    box-shadow: 0 8px 24px rgba(43, 55, 76, 0.06);
+}
+
+.noc-dashboard-home {
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.noc-page-title {
+    color: #354052;
+    font-size: clamp(2rem, 4vw, 2.65rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+
+.noc-statistics {
+    padding: 1.35rem 1rem !important;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.noc-stat {
+    padding: 0.55rem 1rem;
+    border-right: 1px solid #edf2ee;
+}
+
+.noc-stat:last-child {
+    border-right: 0;
+}
+
+.noc-stat h3 {
+    margin-bottom: 0.35rem;
+    color: #718096;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.noc-stat .num {
+    color: #354052;
+    font-size: 2.1rem;
+    font-weight: 800;
+}
+
+.noc-stat:nth-child(1) .num {
+    color: #3aa866;
+}
+
+.noc-events-panel {
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.noc-events-panel .table {
+    margin-bottom: 0;
+}
+
+.noc-events-panel thead th {
+    color: #718096;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.noc-events-panel tbody tr {
+    border-top: 1px solid #edf2ee;
+}
+
+.noc-events-panel tbody td {
+    color: #354052;
+    vertical-align: middle;
+}
+
+.noc-dashboard-layout > [class*="col-"] {
+    min-width: 0;
+}
+
+#app > div:not(.dark) > main {
+    position: relative;
+    z-index: 1;
+    padding: 0 24px 28px;
+}
+
+#app > div:not(.dark) > header .dropdown-menu {
+    z-index: 1100;
+}
+
+#app > div:not(.dark) > header .title,
+#app > div:not(.dark) > header .nav-link {
+    color: #354052;
+}
+
+#app > div:not(.dark) > header .nav-link {
+    border-radius: 10px;
+    padding: 9px 13px;
+    transition: all 0.2s ease;
+}
+
+#app > div:not(.dark) > header .nav-link:hover,
+#app > div:not(.dark) > header .nav-link.router-link-active {
+    color: #3aa866;
+    background: rgba(92, 221, 139, 0.14);
+}
+
+#app > div:not(.dark) > header .profile-pic {
+    background: #5cdd8b;
+    color: #102219;
+}
+
+.kuma-brand-logo {
+    display: block;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #fff;
+}
+
 h1 {
     font-size: 32px;
 }
@@ -108,12 +254,15 @@ optgroup {
 
 .shadow-box {
     //overflow: hidden;   // Forget why add this, but multiple select hide by this
-    box-shadow: 0 15px 70px rgba(0, 0, 0, 0.1);
-    padding: 10px;
-    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(43, 55, 76, 0.06);
+    padding: 14px;
+    border: 1px solid #dfe8e1;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
 
     &.big-padding {
-        padding: 20px;
+        padding: 24px;
     }
 }
 
@@ -128,6 +277,10 @@ optgroup {
 
 .btn-primary {
     color: white;
+    border-radius: 10px;
+    border-color: #5cdd8b;
+    background-color: #5cdd8b;
+    box-shadow: 0 4px 12px rgba(92, 221, 139, 0.2);
 
     &:hover,
     &:active,
@@ -141,6 +294,12 @@ optgroup {
     .dark & {
         color: $dark-font-color2;
     }
+}
+
+.btn-success {
+    border-radius: 10px;
+    background-color: #5cdd8b;
+    border-color: #5cdd8b;
 }
 
 .btn-normal {
@@ -512,11 +671,13 @@ optgroup {
         }
 
         &:hover {
-            background-color: $highlight-white;
+            background-color: rgba(92, 221, 139, 0.12);
+            transform: translateY(-1px);
         }
 
         &.active {
-            background-color: #cdf8f4;
+            background-color: rgba(92, 221, 139, 0.18);
+            box-shadow: inset 3px 0 0 #5cdd8b;
         }
         .tags {
             // Removes margin to line up tags list with uptime percentage
@@ -545,8 +706,9 @@ optgroup {
 
 .btn-success {
     color: #fff;
-    background-color: #4caf50;
-    border-color: #4caf50;
+    background-color: #5cdd8b;
+    border-color: #5cdd8b;
+    border-radius: 10px;
 }
 
 [contenteditable="true"] {

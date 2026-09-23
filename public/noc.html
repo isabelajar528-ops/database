@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOC DATABASE - Lemhannas RI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --kuma-primary: #5cdd8b;
+            --kuma-primary-dark: #3aa866;
+            --kuma-ink: #354052;
+            --kuma-muted: #718096;
+            --kuma-panel: rgba(255, 255, 255, 0.92);
+            --kuma-border: #dfe8e1;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background:
+                radial-gradient(circle at 10% 0%, rgba(92, 221, 139, 0.12), transparent 34rem),
+                #f4f7f5;
+            color: var(--kuma-ink);
+        }
+        .font-mono-digital {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .glass-panel {
+            background: var(--kuma-panel);
+            border: 1px solid var(--kuma-border);
+            box-shadow: 0 8px 24px rgba(43, 55, 76, 0.06);
+            backdrop-filter: blur(10px);
+        }
+        .card-up {
+            background: #ffffff;
+            border: 1px solid #e3e9e7;
+            border-top: 3px solid var(--kuma-primary);
+            box-shadow: 0 8px 22px rgba(43, 55, 76, 0.06);
+        }
+        .card-down {
+            background: #fffafa;
+            border: 1px solid #f0dddd;
+            border-top: 3px solid #d99a9a;
+            box-shadow: 0 8px 22px rgba(157, 78, 78, 0.08);
+        }
+        .card-yellow {
+            border-top-color: #eab308 !important;
+            box-shadow: 0 8px 22px rgba(234, 179, 8, 0.1);
+        }
+        .card-latency-red {
+            border-top-color: #ef4444 !important;
+            box-shadow: 0 8px 22px rgba(239, 68, 68, 0.1);
+        }
+        .pulse-danger {
+            animation: pulse-light 2s infinite;
+        }
+        @keyframes pulse-light {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(244, 63, 94, 0); }
+        }
+
+        /* ANIMASI UPDATE */
+        @keyframes gridFadeIn {
+            from { opacity: 0.5; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .grid-updated {
+            animation: gridFadeIn 0.6s ease-out forwards;
+        }
+
+        @keyframes valueBlink {
+            0% { color: #3B82F6; font-weight: 800; transform: scale(1.1); } 
+            100% { color: inherit; font-weight: inherit; transform: scale(1); }
+        }
+        .value-updated {
+            animation: valueBlink 1.5s ease-out forwards;
+            display: inline-block;
+        }
+
+        #update-progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--kuma-primary-dark), var(--kuma-primary));
+            width: 0%;
+            transition: width 0.3s ease;
+            z-index: 50;
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.5);
+        }
+
+        .tv-mode .tv-hide { display: none; }
+        .tv-mode {
+            padding: 2.5rem 4rem;
+        }
+        .tv-mode #clock-time { font-size: 2.8rem; }
+        .tv-mode #noc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; }
+        .tv-mode #noc-grid > * { min-height: 13rem; padding: 1.75rem; }
+        .tv-mode #noc-grid h4 { font-size: 1.3rem; }
+        .tv-mode .status-summary { margin-bottom: 2rem; }
+        .tv-mode .status-summary > div { padding: 1.25rem 1.5rem; }
+        .tv-mode .status-summary p:last-child { font-size: 2rem; }
+        .tv-mode #last-update-text { display: inline-flex !important; }
+        .fullscreen-button {
+            width: 2.75rem;
+            height: 2.75rem;
+        }
+        @media (min-width: 1600px) {
+            body { padding-left: 4rem; padding-right: 4rem; }
+            #noc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; }
+            #noc-grid > * { min-height: 12rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+        ::-webkit-scrollbar { width: 7px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd2dc; border-radius: 99px; }
+
+        .bg-slate-800 { background-color: #161b22 !important; }
+        .text-slate-800 { color: var(--kuma-ink) !important; }
+        .text-slate-500 { color: var(--kuma-muted) !important; }
+        .border-slate-200,
+        .border-slate-200\/50 { border-color: var(--kuma-border) !important; }
+        .bg-emerald-50 { background-color: rgba(92, 221, 139, 0.14) !important; }
+        .text-emerald-600,
+        .text-emerald-700,
+        .text-emerald-500 { color: var(--kuma-primary-dark) !important; }
+        .border-emerald-100 { border-color: rgba(92, 221, 139, 0.35) !important; }
+        .bg-emerald-400 { background-color: var(--kuma-primary) !important; }
+        .card-up:hover { border-color: var(--kuma-primary); box-shadow: 0 10px 26px rgba(92, 221, 139, 0.2); }
+        .fullscreen-button:hover { color: var(--kuma-primary-dark) !important; border-color: var(--kuma-primary) !important; }
+        .traffic-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+        }
+        .traffic-modal.open { display: flex; }
+        .traffic-panel {
+            width: min(1050px, 100%);
+            max-height: 90vh;
+            overflow: auto;
+            background: #fff;
+            border: 1px solid var(--kuma-border);
+            border-radius: 20px;
+            padding: 1.25rem;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+        }
+        #traffic-chart { width: 100%; height: 300px; display: block; }
+        .traffic-chart-shell {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 0.5rem;
+        }
+        .traffic-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+            margin-top: 0.65rem;
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 700;
+        }
+        .traffic-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+        .traffic-legend i { width: 0.65rem; height: 0.65rem; border-radius: 999px; display: inline-block; }
+        .traffic-legend .legend-line { width: 1.1rem; height: 0.15rem; border-radius: 0; }
+        .traffic-legend .legend-min { background: #166534; }
+        .traffic-legend .legend-avg { background: #4ade80; }
+        .traffic-legend .legend-max { background: #16a34a; }
+        .traffic-legend .legend-green { background: #16a34a; }
+        .traffic-legend .legend-yellow { background: #eab308; }
+        .traffic-legend .legend-red { background: #ef4444; }
+        .traffic-stat {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #fff;
+            padding: 0.65rem 0.75rem;
+        }
+        .traffic-range {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fff;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #475569;
+        }
+        .noc-brand-logo {
+            width: 52px;
+            height: 52px;
+            object-fit: contain;
+            border-radius: 12px;
+            background: #fff;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col px-5 py-5 md:px-10 md:py-8">
+
+    <!-- Indikator Loading Bar -->
+    <div id="update-progress-bar"></div>
+
+    <!-- HEADER -->
+    <header class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6 mb-7 z-10">
+        <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-lg shadow-slate-900/10 overflow-hidden">
+                <img class="noc-brand-logo" src="/lemhannas-logo.jpeg" alt="Lemhannas RI">
+            </div>
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-800">NOC DATABASE</h1>
+                    <span class="hidden sm:inline-flex text-[10px] font-bold tracking-[0.2em] text-slate-500 border border-slate-200 bg-white px-2.5 py-1 rounded-full">LEMHANNAS RI</span>
+                    <i id="sync-icon" class="fa-solid fa-arrows-rotate text-sm text-slate-400 transition-all duration-500"></i>
+                </div>
+                <p class="text-xs md:text-sm text-slate-500 mt-1.5 font-medium tracking-wide">Pemantauan database secara real-time</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 lg:gap-5">
+            <div class="text-right hidden sm:block">
+                <div id="clock-time" class="text-2xl md:text-3xl font-extrabold text-slate-800 font-mono-digital tracking-widest">00:00:00</div>
+                <div id="clock-date" class="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">Memuat Tanggal...</div>
+            </div>
+            <div class="h-10 w-px bg-slate-200 hidden sm:block"></div>
+            <div class="flex items-center gap-2 text-[10px] md:text-xs font-bold text-emerald-700 bg-emerald-50 px-3.5 py-2.5 rounded-xl border border-emerald-100">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> ONLINE
+            </div>
+            <div class="flex items-center gap-2 text-[10px] md:text-xs font-bold text-rose-700 bg-rose-50 px-3.5 py-2.5 rounded-xl border border-rose-100">
+                <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span> OFFLINE
+            </div>
+            <button id="fullscreen-button" class="fullscreen-button rounded-xl flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-800 transition" title="Mode layar penuh" type="button">
+                <i class="fa-solid fa-expand text-sm"></i>
+            </button>
+            <a id="dashboard-button" href="/dashboard" class="fullscreen-button rounded-xl flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-800 transition" title="Buka Dashboard Uptime Kuma" aria-label="Buka Dashboard Uptime Kuma">
+                <i class="fa-solid fa-chart-line text-sm"></i>
+            </a>
+        </div>
+    </header>
+
+    <section class="status-summary grid grid-cols-2 sm:grid-cols-5 gap-3 md:gap-4 mb-6 z-10">
+        <div class="glass-panel rounded-2xl px-5 py-4 flex items-center justify-between">
+            <div><p class="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Total</p><p id="total-count" class="text-2xl font-extrabold text-slate-800 mt-1">—</p></div>
+            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><i class="fa-solid fa-server"></i></div>
+        </div>
+        <div class="glass-panel rounded-2xl px-5 py-4 flex items-center justify-between">
+            <div><p class="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Up</p><p id="online-count" class="text-2xl font-extrabold text-emerald-600 mt-1">—</p></div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-circle-check"></i></div>
+        </div>
+        <div class="glass-panel rounded-2xl px-5 py-4 flex items-center justify-between">
+            <div><p class="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Down</p><p id="offline-count" class="text-2xl font-extrabold text-rose-500 mt-1">—</p></div>
+            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        </div>
+        <div class="glass-panel rounded-2xl px-5 py-4 flex items-center justify-between">
+            <div><p class="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Maintenance</p><p id="maintenance-count" class="text-2xl font-extrabold text-amber-600 mt-1">—</p></div>
+            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-wrench"></i></div>
+        </div>
+        <div class="glass-panel rounded-2xl px-5 py-4 flex items-center justify-between">
+            <div><p class="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold">Unknown</p><p id="unknown-count" class="text-2xl font-extrabold text-slate-500 mt-1">—</p></div>
+            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center"><i class="fa-solid fa-circle-question"></i></div>
+        </div>
+    </section>
+
+    <!-- GRID APLIKASI -->
+    <div id="noc-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 flex-1 content-start z-10 pb-4 overflow-y-auto pr-1">
+        <div class="col-span-full py-20 text-center text-slate-500 font-medium">
+            <i class="fa-solid fa-spinner fa-spin text-3xl mb-4 block text-slate-400"></i>
+            Memuat data dari Uptime Kuma...
+        </div>
+
+    </div>
+
+    <div id="traffic-modal" class="traffic-modal" role="dialog" aria-modal="true" aria-labelledby="traffic-title">
+        <div class="traffic-panel">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div>
+                    <h2 id="traffic-title" class="text-xl font-extrabold text-slate-800">Trafik Ping Monitor</h2>
+                    <p class="text-xs text-slate-500 mt-1">Data heartbeat asli dari Uptime Kuma</p>
+                </div>
+                <button id="traffic-close" type="button" class="fullscreen-button rounded-xl border border-slate-200 px-3 py-2 text-slate-500" title="Tutup trafik">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <select id="traffic-monitor" class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 bg-white"></select>
+                <select id="traffic-range" class="traffic-range" title="Rentang waktu trafik">
+                    <option value="recent">Recent</option>
+                    <option value="3h">3 jam</option>
+                    <option value="6h">6 jam</option>
+                    <option value="24h">24 jam</option>
+                    <option value="1w">1 minggu</option>
+                </select>
+                <button id="traffic-web" type="button" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50" title="Buka website monitor">
+                    <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>
+                    Akses Web
+                </button>
+            </div>
+            <div class="traffic-chart-shell">
+                <canvas id="traffic-chart" aria-label="Grafik trafik ping"></canvas>
+                <div class="traffic-legend" aria-label="Keterangan warna grafik">
+                    <span><i class="legend-line legend-min"></i>Min</span>
+                    <span><i class="legend-line legend-avg"></i>Rata-rata</span>
+                    <span><i class="legend-line legend-max"></i>Max</span>
+                    <span><i class="legend-green"></i>Hijau: ≤200 ms</span>
+                    <span><i class="legend-yellow"></i>Kuning: &gt;200 ms</span>
+                    <span><i class="legend-red"></i>Merah: offline/mati</span>
+                </div>
+            </div>
+            <div id="traffic-summary" class="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-slate-600"></div>
+        </div>
+    </div>
+
+    <!-- FOOTER DENGAN TIMER REFRESH -->
+    <div class="mt-auto pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 border-t border-white/10">
+        <div class="text-[10px] md:text-xs text-slate-500 font-bold tracking-wider uppercase">
+            SINKRONISASI JADWAL BERIKUTNYA:
+        </div>
+        
+        <div class="bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1.5 rounded-lg font-mono-digital font-bold text-xs md:text-sm flex items-center gap-2">
+            <i class="fa-solid fa-stopwatch animate-pulse"></i>
+            <span id="timer-display">03:00</span>
+        </div>
+
+        <span id="last-update-text" class="text-xs text-emerald-500 font-bold hidden transition-all duration-300">
+            <i class="fa-solid fa-check-circle mr-1"></i> Data Tersinkronisasi!
+        </span>
+    </div>
+
+    <script>
+        // CONFIG KONFIGURASI UPTIME KUMA
+        const MONITOR_API_URL = '/api/noc/monitors';
+        const REFRESH_INTERVAL = 3 * 60;              // Interval pembaruan data (dalam detik)
+        const PING_GREEN_LIMIT = 200;
+        let sedangMemuat = false;
+        let selisihWaktuServer = 0;
+        let slotSinkronisasiTerakhir = Math.floor(Date.now() / 1000 / REFRESH_INTERVAL);
+        let daftarMonitor = [];
+
+        function escapeHTML(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[character]));
+        }
+
+        function warnaPing(ping, status) {
+            if (status === 0) return 'red';
+            if (status !== 1 || !Number.isFinite(Number(ping)) || Number(ping) <= 0) return 'yellow';
+            if (Number(ping) <= PING_GREEN_LIMIT) return 'green';
+            return 'yellow';
+        }
+
+        function warnaPingHex(ping, status) {
+            const warna = warnaPing(ping, status);
+            return warna === 'green' ? '#16a34a' : (warna === 'yellow' ? '#eab308' : '#ef4444');
+        }
+
+        async function fetchNOC(url, options = {}) {
+            const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+            const headers = new Headers(options.headers || {});
+            if (token && token !== 'autoLogin') {
+                headers.set('Authorization', `Bearer ${token}`);
+            }
+            const response = await fetch(url, { ...options, headers });
+            if (response.status === 401) {
+                sessionStorage.removeItem('token');
+                localStorage.removeItem('token');
+                window.location.assign('/dashboard');
+                throw new Error('Sesi login berakhir. Silakan login kembali.');
+            }
+            return response;
+        }
+
+        // 1. SCRIPT JAM DIGITAL
+        function updateClock() {
+            const now = new Date();
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            let timeString = now.toLocaleTimeString('id-ID', timeOptions).replace(/\./g, ':');
+            document.getElementById('clock-time').innerText = timeString;
+            
+            const dateOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            document.getElementById('clock-date').innerText = now.toLocaleDateString('id-ID', dateOptions);
+        }
+        setInterval(updateClock, 1000);
+        updateClock(); 
+
+        // 2. INTEGRASI DENGAN API UPTIME KUMA
+        async function muatStatusNOC() {
+            if (sedangMemuat) return;
+
+            sedangMemuat = true;
+            const grid = document.getElementById('noc-grid');
+            const progressBar = document.getElementById('update-progress-bar');
+            const syncIcon = document.getElementById('sync-icon');
+            const updateText = document.getElementById('last-update-text');
+
+            progressBar.style.width = '40%'; 
+            syncIcon.classList.add('fa-spin', 'text-slate-700'); 
+            syncIcon.classList.remove('text-slate-400');
+            grid.style.opacity = '0.5'; 
+
+            try {
+                const response = await fetchNOC(MONITOR_API_URL);
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Buka NOC melalui alamat server Uptime Kuma yang sama agar API dan tampilan tersinkronisasi.');
+                }
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || 'Proxy Uptime Kuma gagal');
+                const monitors = payload.monitors || [];
+                daftarMonitor = monitors;
+                if (Number.isFinite(Number(payload.serverTime))) {
+                    selisihWaktuServer = Number(payload.serverTime) - Date.now();
+                    // Recompute the last sync slot using server-aligned time so all clients sync to the same boundary
+                    slotSinkronisasiTerakhir = Math.floor((Date.now() + selisihWaktuServer) / 1000 / REFRESH_INTERVAL);
+                }
+
+                grid.innerHTML = '';
+                let onlineCount = 0;
+                let offlineCount = 0;
+                let unknownCount = 0;
+                const maintenanceCount = 0;
+
+                monitors.forEach(app => {
+                    // Status Uptime Kuma: 1 = UP (ONLINE), 0 = DOWN (OFFLINE)
+                    let isUp = app.status === 1;
+                    let isDown = app.status === 0;
+                    if (isUp) onlineCount++;
+                    if (isDown) offlineCount++;
+                    if (!isUp && !isDown) unknownCount++;
+
+                    const ping = Number(app.ping);
+                    const pingColor = warnaPing(ping, app.status);
+                    let colorClasses = isDown
+                        ? 'card-down pulse-danger'
+                        : (pingColor === 'yellow' ? 'card-up card-yellow' : (pingColor === 'red' ? 'card-up card-latency-red' : 'card-up'));
+                    let dotColor = pingColor === 'green' ? 'bg-emerald-400' : (pingColor === 'yellow' ? 'bg-yellow-400' : 'bg-rose-400');
+                    let statusText = isUp ? 'ONLINE' : (isDown ? 'OFFLINE' : 'PENDING');
+                    let badgeBg = pingColor === 'green'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        : (pingColor === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-rose-50 text-rose-700 border-rose-100');
+                    
+                    let responseTime = 'N/A';
+                    if (isUp && Number.isFinite(ping) && ping > 0) {
+                        const rounded = Math.round(ping);
+                        responseTime = rounded > 999 ? '>999 ms' : `${rounded} ms`;
+                    }
+                    let responseColor = pingColor === 'green' ? 'text-emerald-700' : (pingColor === 'yellow' ? 'text-yellow-700' : 'text-rose-700');
+                    let titleColor = isDown ? 'text-rose-900' : 'text-slate-800';
+                    let tagType = 'div';
+                    let hrefAttr = '';
+                    let hoverClass = 'cursor-pointer hover:-translate-y-1 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-400';
+
+                    let baseClasses = `p-5 md:p-6 rounded-2xl flex flex-col justify-between h-full min-h-[9.5rem] transition-all duration-300 block no-underline ${hoverClass}`;
+
+                    grid.innerHTML += `
+                        <${tagType} ${hrefAttr} class="${baseClasses} ${colorClasses}" data-monitor-id="${app.id}" role="button" tabindex="0" aria-label="Buka trafik ${escapeHTML(app.name)}">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="text-[10px] md:text-xs font-bold tracking-wider px-2.5 py-1 rounded-md border ${badgeBg}">
+                                    ${statusText}
+                                </div>
+                                <div class="w-3.5 h-3.5 rounded-full ${dotColor} shrink-0 shadow-sm"></div>
+                            </div>
+                            <div class="mt-auto">
+                                <h4 class="text-base md:text-lg font-extrabold ${titleColor} leading-snug break-words pr-2 drop-shadow-sm">
+                                    ${escapeHTML(app.name)}
+                                </h4>
+                                <div class="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5 font-mono-digital font-semibold">
+                                    <i class="fa-solid fa-stopwatch text-slate-500"></i> 
+                                    <span class="value-updated ${responseColor}">${responseTime}</span>
+                                </div>
+                            </div>
+                        </${tagType}>
+                    `;
+                });
+
+                document.getElementById('total-count').innerText = monitors.length;
+                document.getElementById('online-count').innerText = onlineCount;
+                document.getElementById('offline-count').innerText = offlineCount;
+                document.getElementById('maintenance-count').innerText = maintenanceCount;
+                document.getElementById('unknown-count').innerText = unknownCount;
+                grid.style.opacity = '1';
+                grid.classList.remove('grid-updated'); 
+                void grid.offsetWidth; 
+                grid.classList.add('grid-updated');
+
+                progressBar.style.width = '100%';
+                updateText.classList.remove('hidden');
+
+                setTimeout(() => {
+                    progressBar.style.opacity = '0';
+                    setTimeout(() => {
+                        progressBar.style.width = '0%';
+                        progressBar.style.opacity = '1';
+                    }, 300);
+                    syncIcon.classList.remove('fa-spin', 'text-slate-700');
+                    syncIcon.classList.add('text-slate-400');
+                    updateText.classList.add('hidden');
+                }, 2500);
+
+            } catch (error) {
+                console.error('Gagal mengambil data dari Uptime Kuma:', error);
+                grid.innerHTML = `
+                    <div class="col-span-full py-10 text-center text-rose-500 font-semibold">
+                        Gagal mengambil monitor dari proxy Uptime Kuma: ${error.message}
+                    </div>
+                `;
+                progressBar.style.background = 'red';
+                progressBar.style.width = '100%';
+            } finally {
+                sedangMemuat = false;
+            }
+        }
+
+        // 3. LOGIKA TIMER SINKRONISASI REFRESH
+        function startCountdown() {
+            const waktuSekarang = Math.floor((Date.now() + selisihWaktuServer) / 1000);
+            const slotSinkronisasiSekarang = Math.floor(waktuSekarang / REFRESH_INTERVAL);
+            const sisaWaktu = REFRESH_INTERVAL - (waktuSekarang % REFRESH_INTERVAL);
+
+            if (slotSinkronisasiSekarang !== slotSinkronisasiTerakhir) {
+                slotSinkronisasiTerakhir = slotSinkronisasiSekarang;
+                muatStatusNOC();
+            }
+            
+            let m = Math.floor(sisaWaktu / 60);
+            let s = sisaWaktu % 60;
+            let formattedTime = (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+            
+            document.getElementById('timer-display').innerText = formattedTime;
+        }
+
+        async function gambarTrafik(monitorID, range = 'recent') {
+            const chart = document.getElementById('traffic-chart');
+            const context = chart.getContext('2d');
+            const response = await fetchNOC(`/api/noc/traffic/${monitorID}?range=${encodeURIComponent(range)}`);
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || 'Data trafik gagal dimuat');
+
+            const allPoints = payload.points;
+            const points = allPoints.filter(point => Number.isFinite(point.ping));
+            const width = chart.clientWidth * window.devicePixelRatio;
+            const height = chart.clientHeight * window.devicePixelRatio;
+            chart.width = width;
+            chart.height = height;
+            context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+            const displayWidth = chart.clientWidth;
+            const displayHeight = chart.clientHeight;
+            context.clearRect(0, 0, displayWidth, displayHeight);
+            context.font = '12px Inter, sans-serif';
+            context.fillStyle = '#718096';
+            context.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+            context.lineWidth = 1;
+
+            if (points.length === 0) {
+                context.textAlign = 'center';
+                context.fillText('Belum ada data ping yang valid.', displayWidth / 2, displayHeight / 2);
+                document.getElementById('traffic-summary').innerHTML =
+                    '<strong class="text-slate-700">Belum ada data ping valid.</strong><br>' +
+                    'Monitor belum memiliki heartbeat dengan waktu respons positif pada periode yang tersedia.';
+                return;
+            }
+
+            const padding = { top: 20, right: 20, bottom: 35, left: 52 };
+            const plotWidth = displayWidth - padding.left - padding.right;
+            const plotHeight = displayHeight - padding.top - padding.bottom;
+            // Batasi skala maksimum grafik ke 1000 ms agar tidak mengembang ketika ada spike besar
+            const computedMax = Math.max(...points.map(point => point.ping));
+            const maxPing = Math.min(1000, Math.max(100, Math.ceil(computedMax / 100) * 100));
+            context.fillStyle = '#64748b';
+            for (let step = 0; step <= 4; step++) {
+                const y = padding.top + plotHeight - (plotHeight * step / 4);
+                context.beginPath();
+                context.moveTo(padding.left, y);
+                context.lineTo(displayWidth - padding.right, y);
+                context.stroke();
+                context.fillText(`${Math.round(maxPing * step / 4)} ms`, 5, y + 4);
+            }
+
+            const buckets = [];
+            const bucketSize = Math.max(1, Math.ceil(points.length / 60));
+            for (let index = 0; index < points.length; index += bucketSize) {
+                const bucket = points.slice(index, index + bucketSize);
+                buckets.push({
+                    min: Math.min(...bucket.map(point => point.ping)),
+                    avg: bucket.reduce((sum, point) => sum + point.ping, 0) / bucket.length,
+                    max: Math.max(...bucket.map(point => point.ping)),
+                    point: bucket[bucket.length - 1]
+                });
+            }
+            const coordinates = buckets.map((bucket, index) => ({
+                bucket,
+                point: bucket.point,
+                x: padding.left + (plotWidth * index / Math.max(1, buckets.length - 1)),
+                minY: padding.top + plotHeight - (Math.min(bucket.min, maxPing) / maxPing * plotHeight),
+                avgY: padding.top + plotHeight - (Math.min(bucket.avg, maxPing) / maxPing * plotHeight),
+                maxY: padding.top + plotHeight - (Math.min(bucket.max, maxPing) / maxPing * plotHeight)
+            }));
+            const drawSeries = (key, color, lineWidth) => {
+                context.strokeStyle = color;
+                context.lineWidth = lineWidth;
+                context.beginPath();
+                coordinates.forEach((coordinate, index) => {
+                    if (index === 0) context.moveTo(coordinate.x, coordinate[key]);
+                    else context.lineTo(coordinate.x, coordinate[key]);
+                });
+                context.stroke();
+            };
+            drawSeries('minY', '#166534', 2);
+            drawSeries('avgY', '#4ade80', 3);
+            drawSeries('maxY', '#16a34a', 2);
+            coordinates.forEach(coordinate => {
+                context.fillStyle = warnaPingHex(coordinate.point.ping, coordinate.point.status);
+                context.beginPath();
+                context.arc(coordinate.x, coordinate.avgY, 2.5, 0, Math.PI * 2);
+                context.fill();
+            });
+
+            const average = points.reduce((sum, point) => sum + point.ping, 0) / points.length;
+            const avgText = Math.round(average) > 999 ? '>999 ms' : `${Math.round(average)} ms`;
+            const averageColor = warnaPingHex(average, 1);
+            const currentPoint = [...allPoints].reverse().find(point => Number.isFinite(point.ping));
+            const currentPing = currentPoint ? Math.round(currentPoint.ping) : null;
+            const currentText = currentPing === null ? 'N/A' : (currentPing > 999 ? '>999 ms' : `${currentPing} ms`);
+            const currentColor = currentPoint ? warnaPingHex(currentPoint.ping, currentPoint.status) : '#64748b';
+            const minPing = Math.round(Math.min(...points.map(point => point.ping)));
+            const maxObservedPing = Math.round(Math.max(...points.map(point => point.ping)));
+            const minColor = warnaPingHex(minPing, 1);
+            const maxColor = warnaPingHex(maxObservedPing, 1);
+            const latestPoint = allPoints[allPoints.length - 1];
+            const uptime = allPoints.length
+                ? (allPoints.filter(point => point.status === 1).length / allPoints.length) * 100
+                : 0;
+            const formatWaktu = value => {
+                const timestamp = Number(value);
+                let date;
+                if (Number.isFinite(timestamp)) {
+                    const milliseconds = timestamp < 100000000000 ? timestamp * 1000 : timestamp;
+                    date = new Date(milliseconds);
+                } else {
+                    date = new Date(value);
+                }
+                if (Number.isNaN(date.getTime())) return 'waktu tidak tersedia';
+                return date.toLocaleString('id-ID', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            };
+            const statusTerakhir = latestPoint.status === 1 ? 'ONLINE' : (latestPoint.status === 0 ? 'OFFLINE' : 'PENDING');
+            document.getElementById('traffic-summary').innerHTML =
+                `<div class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">` +
+                `<div class="traffic-stat"><span class="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Saat ini</span><strong class="text-lg" style="color:${currentColor}">${currentText}</strong></div>` +
+                `<div class="traffic-stat"><span class="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Rata-rata</span><strong class="text-lg" style="color:${averageColor}">${avgText}</strong></div>` +
+                `<div class="traffic-stat"><span class="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Tercepat</span><strong class="text-lg" style="color:${minColor}">${minPing} ms</strong></div>` +
+                `<div class="traffic-stat"><span class="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Terlambat</span><strong class="text-lg" style="color:${maxColor}">${maxObservedPing > 999 ? '>999 ms' : `${maxObservedPing} ms`}</strong></div>` +
+                `<div class="traffic-stat"><span class="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Jumlah data</span><strong class="text-lg text-slate-800">${points.length}</strong><span class="ml-1 text-xs text-slate-500">heartbeat</span></div>` +
+                `<div class="traffic-stat"><span class="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Uptime</span><strong class="text-lg text-emerald-700">${uptime.toFixed(2)}%</strong></div>` +
+                `</div>` +
+                `<p class="mt-3 border-t border-slate-200 pt-2">Status: <strong>${statusTerakhir}</strong> · Terakhir: <strong>${formatWaktu(latestPoint.time)}</strong> · Rentang: <strong>${range}</strong></p>`;
+        }
+
+        function siapkanTrafik() {
+            const modal = document.getElementById('traffic-modal');
+            const selector = document.getElementById('traffic-monitor');
+            const rangeSelector = document.getElementById('traffic-range');
+            const grid = document.getElementById('noc-grid');
+            const webButton = document.getElementById('traffic-web');
+            const closeButton = document.getElementById('traffic-close');
+
+            function perbaruiTombolWeb() {
+                const monitor = daftarMonitor.find(item => String(item.id) === String(selector.value));
+                let url = '';
+                try {
+                    const parsedURL = new URL(monitor?.url || '', window.location.origin);
+                    if (parsedURL.protocol === 'http:' || parsedURL.protocol === 'https:') {
+                        url = parsedURL.href;
+                    }
+                } catch {
+                    url = '';
+                }
+                webButton.disabled = !url;
+                webButton.dataset.url = url;
+            }
+
+            async function bukaTrafik(monitorID) {
+                const selectedMonitor = daftarMonitor.find(monitor => String(monitor.id) === String(monitorID));
+                selector.innerHTML = daftarMonitor
+                    .map(monitor => `<option value="${monitor.id}">${escapeHTML(monitor.name)}</option>`)
+                    .join('');
+                selector.value = String(monitorID);
+                document.getElementById('traffic-title').innerText =
+                    `Trafik Ping - ${selectedMonitor?.name || 'Monitor'}`;
+                perbaruiTombolWeb();
+                modal.classList.add('open');
+                try {
+                    await gambarTrafik(monitorID, rangeSelector.value);
+                } catch (error) {
+                    document.getElementById('traffic-summary').innerHTML =
+                        `<strong class="text-rose-600">Trafik gagal dimuat.</strong><br>${error.message}`;
+                }
+            }
+
+            grid.addEventListener('click', event => {
+                const card = event.target.closest('[data-monitor-id]');
+                if (card) bukaTrafik(card.dataset.monitorId);
+            });
+            grid.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                const card = event.target.closest('[data-monitor-id]');
+                if (card) {
+                    event.preventDefault();
+                    bukaTrafik(card.dataset.monitorId);
+                }
+            });
+            selector.addEventListener('change', () => {
+                const selectedMonitor = daftarMonitor.find(monitor => String(monitor.id) === String(selector.value));
+                document.getElementById('traffic-title').innerText =
+                    `Trafik Ping - ${selectedMonitor?.name || 'Monitor'}`;
+                perbaruiTombolWeb();
+                gambarTrafik(selector.value, rangeSelector.value);
+            });
+            rangeSelector.addEventListener('change', () => {
+                gambarTrafik(selector.value, rangeSelector.value);
+            });
+            webButton.addEventListener('click', () => {
+                const url = webButton.dataset.url;
+                if (url) {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                }
+            });
+            closeButton.addEventListener('click', () => modal.classList.remove('open'));
+            modal.addEventListener('click', event => {
+                if (event.target === modal) modal.classList.remove('open');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const fullscreenButton = document.getElementById('fullscreen-button');
+            fullscreenButton.addEventListener('click', async () => {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                    document.body.classList.add('tv-mode');
+                    fullscreenButton.innerHTML = '<i class="fa-solid fa-compress text-sm"></i>';
+                    fullscreenButton.title = 'Keluar dari layar penuh';
+                } else {
+                    await document.exitFullscreen();
+                }
+            });
+            document.addEventListener('fullscreenchange', () => {
+                const isFullscreen = Boolean(document.fullscreenElement);
+                document.body.classList.toggle('tv-mode', isFullscreen);
+                fullscreenButton.innerHTML = `<i class="fa-solid fa-${isFullscreen ? 'compress' : 'expand'} text-sm"></i>`;
+                fullscreenButton.title = isFullscreen ? 'Keluar dari layar penuh' : 'Mode layar penuh';
+            });
+            muatStatusNOC();
+            startCountdown();
+            setInterval(startCountdown, 1000);
+            siapkanTrafik();
+        });
+    </script>
+</body>
+</html>
